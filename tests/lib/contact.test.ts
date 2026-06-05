@@ -19,10 +19,10 @@ describe("contact helpers", () => {
   });
 
   it("keeps the primary contact links consistent", () => {
-    expect(getPhoneHref()).toBe("tel:07038296178");
+    expect(getPhoneHref()).toBe("tel:08021352593");
     expect(getEmailHref()).toBe("mailto:superwaycleaningservice@gmail.com");
     expect(getBookingMailtoHref()).toBe("mailto:superwaycleaningservice@gmail.com?subject=New%20Booking%20Request");
-    expect(getWhatsAppBookingHref()).toBe("https://wa.me/2347038296178?text=Hello%20SuperWay%2C%20I%20need%20a%20cleaning%20service.");
-    expect(business.phoneDisplay).toBe("0703 829 6178");
+    expect(getWhatsAppBookingHref()).toBe("https://wa.me/2348021352593?text=Hello%20SuperWay%2C%20I%20need%20a%20cleaning%20service.");
+    expect(business.phoneDisplay).toBe("0802 135 2593");
   });
 });
