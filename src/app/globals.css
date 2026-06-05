@@ -1926,20 +1926,26 @@ textarea {
   }
 
   .sw-badges-pill {
-    flex-direction: column;
-    border-radius: 16px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    background: transparent;
+    box-shadow: none;
+    border: 0;
+    padding: 0;
     margin-top: 18px;
-    overflow: hidden;
   }
 
   .sw-badges-pill .sw-badge-item {
-    border-right: 0;
-    border-bottom: 1px solid rgba(7, 25, 54, 0.12);
-    padding: 12px 16px;
+    background: #fdfbf7;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 10px rgba(7, 25, 54, 0.03);
   }
 
-  .sw-badges-pill .sw-badge-item:last-child {
-    border-bottom: 0;
+  .sw-badges-pill .sw-badge-item:first-child {
+    grid-column: 1 / -1;
   }
 
   .sw-mobile-badge {
@@ -1971,24 +1977,64 @@ textarea {
     gap: 32px;
   }
 
-  .sw-service-grid,
-  .sw-trust-grid,
+  .sw-service-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .sw-trust-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
   .sw-gallery-highlights {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 
   .sw-service-card {
-    min-height: 64px;
-    padding: 10px 14px;
+    min-height: 52px;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+
+  .sw-service-card svg {
+    width: 20px;
+    height: 20px;
   }
 
   .sw-service-card strong {
-    font-size: 12.5px;
+    font-size: 11.5px;
+    line-height: 1.25;
   }
 
   .sw-trust-item {
-    font-size: 12.5px;
+    font-size: 12px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .sw-trust-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .sw-gallery-tile {
+    padding: 8px 10px;
+    font-size: 11.5px;
+    border-radius: 10px;
+    gap: 8px;
+  }
+
+  .sw-gallery-tile svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sw-slider-container {
+    aspect-ratio: 16 / 10;
+    margin-top: 12px;
   }
 
   .sw-title h2 {
@@ -2036,29 +2082,50 @@ textarea {
     min-height: 0;
     padding-left: 0;
     border-left: 0;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .sw-footer svg {
+    flex: 0 0 32px;
   }
 
   .sw-mobile-bar {
     position: fixed;
     left: 50%;
-    bottom: 0;
+    bottom: 16px;
     z-index: 60;
     display: grid;
-    grid-template-columns: 1fr 1.55fr;
+    grid-template-columns: 1.1fr 1.3fr;
     gap: 12px;
-    width: min(640px, 100%);
-    padding: 12px 16px;
-    background: white;
+    width: calc(100% - 32px);
+    max-width: 440px;
+    padding: 12px 18px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(7, 25, 54, 0.14);
+    border-radius: 28px;
+    box-shadow: 0 12px 32px rgba(7, 25, 54, 0.18);
     transform: translateX(-50%);
   }
 
   .sw-mobile-bar a,
   .sw-mobile-bar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     min-height: 48px;
-    border: 2px solid var(--accent);
+    border: 1.5px solid var(--accent);
+    border-radius: 999px;
     background: white;
     color: var(--accent-dark);
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(7, 25, 54, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
   .sw-mobile-bar button {
@@ -2391,6 +2458,70 @@ textarea {
     bottom: 90px;
     width: 56px;
     height: 56px;
+  }
+
+  /* Mobile Footer Stacking Bug Fix & Cleanup */
+  .sw-footer {
+    grid-template-columns: 1fr !important;
+    gap: 24px;
+    padding: 36px 24px 110px; /* Elevated padding-bottom to clear sticky mobile pill bar */
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .sw-footer a,
+  .sw-footer > span {
+    width: 100%;
+    overflow: hidden;
+    padding-left: 0;
+    border-left: 0;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .sw-footer a span,
+  .sw-footer > span span {
+    width: 100%;
+  }
+
+  .sw-footer strong {
+    word-break: break-all;
+    font-size: 13.5px;
+  }
+
+  .sw-social {
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    width: 100%;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
+  /* Mobile Booking Modal Optimizations */
+  .sw-modal-panel {
+    padding: 24px 20px;
+  }
+
+  .sw-modal-panel h3 {
+    font-size: 26px;
+  }
+
+  .sw-modal-intro {
+    font-size: 13.5px;
+  }
+
+  .sw-modal-perks {
+    grid-template-columns: 1fr; /* Single column stack for perks to avoid narrow text columns */
+    gap: 14px;
+  }
+
+  .sw-booking-form {
+    padding: 18px 20px;
+  }
+
+  .sw-frequency-options {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
   }
 }
 
