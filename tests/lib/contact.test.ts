@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { business, getBusinessHoursLabel, getEmailHref, getPhoneHref, getPrimaryWhatsAppHref } from "@/lib/contact";
+import {
+  business,
+  getBookingMailtoHref,
+  getBusinessHoursLabel,
+  getEmailHref,
+  getPhoneHref,
+  getPrimaryWhatsAppHref,
+  getWhatsAppBookingHref,
+} from "@/lib/contact";
 
 describe("contact helpers", () => {
   it("formats the WhatsApp deep link from the configured number", () => {
@@ -7,12 +15,14 @@ describe("contact helpers", () => {
   });
 
   it("renders the approved business hours label", () => {
-    expect(getBusinessHoursLabel()).toBe("7:00 AM to 7:00 PM, Monday to Saturday");
+    expect(getBusinessHoursLabel()).toBe("8:00 AM to 8:00 PM, Monday to Saturday");
   });
 
   it("keeps the primary contact links consistent", () => {
     expect(getPhoneHref()).toBe("tel:07038296178");
-    expect(getEmailHref()).toBe("mailto:adawa366@gmail.com");
+    expect(getEmailHref()).toBe("mailto:superwaycleaningservice@gmail.com");
+    expect(getBookingMailtoHref()).toBe("mailto:superwaycleaningservice@gmail.com?subject=New%20Booking%20Request");
+    expect(getWhatsAppBookingHref()).toBe("https://wa.me/2347038296178?text=Hello%20SuperWay%2C%20I%20need%20a%20cleaning%20service.");
     expect(business.phoneDisplay).toBe("0703 829 6178");
   });
 });

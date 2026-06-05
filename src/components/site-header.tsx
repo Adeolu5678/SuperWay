@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Menu, Phone, X } from "lucide-react";
 import { useState } from "react";
 import { navItems } from "@/lib/site-content";
@@ -16,9 +17,14 @@ export function SiteHeader({ onBookService }: SiteHeaderProps) {
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[rgba(245,241,232,0.84)] backdrop-blur-xl">
       <div className="container-page flex items-center justify-between gap-3 py-3 md:py-4">
         <a href="#home" className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[rgba(40,95,32,0.25)] bg-white/80 text-[1.15rem] font-bold text-[var(--accent)] shadow-sm">
-            SW
-          </span>
+          <div className="relative h-11 w-11 overflow-hidden rounded-full border border-[rgba(40,95,32,0.25)] bg-white/80 shadow-sm">
+            <Image
+              src="/superway/sw-logo.png"
+              alt="Super Way Logo"
+              fill
+              className="object-cover"
+            />
+          </div>
           <span className="hidden sm:block">
             <span className="block font-[family:var(--font-display)] text-xl font-bold tracking-[0.12em] text-[var(--foreground)]">
               SUPER WAY
