@@ -2,32 +2,55 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const LOCAL_DB_PATH = path.join(process.cwd(), "bookings.json");
+// The Google Apps Script web app is the system of record. It is slow and
+// variable (observed 8s-40s+), so give the function room and bound the call.
+export const maxDuration = 60;
+const SCRIPT_TIMEOUT_MS = 45_000;
+
+// Local disk persistence is a BACKUP / local-dev aid only. On serverless
+// hosts (e.g. Vercel) the project filesystem is read-only (EROFS), so every
+// write here must be best-effort and must never block the primary capture path.
+const IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const LOCAL_DB_PATH = IS_SERVERLESS
+  ? path.join("/tmp", "bookings.json")
+  : path.join(process.cwd(), "bookings.json");
+
+/**
+ * Append a booking to the local JSON backup.
+ * Returns true if persisted, false if the host filesystem rejected the write.
+ * Never throws.
+ */
+function saveLocal(booking: Record<string, unknown>): boolean {
+  try {
+    let bookings: unknown[] = [];
+    if (fs.existsSync(LOCAL_DB_PATH)) {
+      try {
+        bookings = JSON.parse(fs.readFileSync(LOCAL_DB_PATH, "utf-8"));
+        if (!Array.isArray(bookings)) bookings = [];
+      } catch {
+        console.error("Error parsing bookings.json, resetting");
+      }
+    }
+    bookings.push(booking);
+    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(bookings, null, 2), "utf-8");
+    return true;
+  } catch (e) {
+    console.error("Local booking backup unavailable (read-only fs?):", e);
+    return false;
+  }
+}
 
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-
-    // 1. Log locally to bookings.json as a backup/local dev DB
-    let bookings = [];
-    if (fs.existsSync(LOCAL_DB_PATH)) {
-      try {
-        const fileData = fs.readFileSync(LOCAL_DB_PATH, "utf-8");
-        bookings = JSON.parse(fileData);
-      } catch (e) {
-        console.error("Error parsing bookings.json, resetting", e);
-      }
-    }
 
     const newBooking = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
       ...data,
     };
-    bookings.push(newBooking);
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(bookings, null, 2), "utf-8");
 
-    // 2. Proxy to Google Apps Script Web App if URL is configured
+    // 1. PRIMARY capture path: Google Apps Script web app (system of record).
     const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
     if (scriptUrl) {
       try {
@@ -35,16 +58,57 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
+          signal: AbortSignal.timeout(SCRIPT_TIMEOUT_MS),
         });
-        const result = await response.json();
-        return NextResponse.json(result);
+        if (response.ok) {
+          const result = await response.json();
+          saveLocal(newBooking); // best-effort backup only
+          return NextResponse.json(result);
+        }
+        console.error(`Google Apps Script returned HTTP ${response.status}`);
       } catch (scriptErr) {
         console.error("Google Apps Script proxy error:", scriptErr);
-        // Fallback to local success if script failed
       }
+      // Script failed -> fall through and try the local backup below.
+    } else {
+      console.error("GOOGLE_APPS_SCRIPT_URL is not configured; cannot reach the system of record");
     }
 
-    return NextResponse.json({ success: true, booking: newBooking, note: "Saved locally" });
+    // 2. FALLBACK: local backup store.
+    //
+    // On serverless hosts the local store lives in /tmp: it is ephemeral and
+    // per-instance, so a write there is NOT a durable booking record. Reporting
+    // success for it would be a false success - the customer would believe they
+    // were booked while the request vanishes. Fail honestly instead and point
+    // them at a channel that does not depend on this server.
+    if (IS_SERVERLESS) {
+      console.error("Apps Script capture failed and local storage is not durable on serverless");
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "We could not save your booking online. Please call or WhatsApp 0802 135 2593 and we will confirm your slot.",
+        },
+        { status: 503 }
+      );
+    }
+
+    const savedLocally = saveLocal(newBooking);
+    if (savedLocally) {
+      return NextResponse.json({ success: true, booking: newBooking, note: "Saved locally" });
+    }
+
+    // 3. Nothing persisted. Be honest with the caller and point them at a
+    //    channel that does not depend on this server.
+    console.error("Booking could not be persisted by any channel");
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "We could not save your booking online. Please call or WhatsApp 0802 135 2593 and we will confirm your slot.",
+      },
+      { status: 503 }
+    );
   } catch (error) {
     console.error("Failed to save booking:", error);
     return NextResponse.json({ success: false, error: "Failed to save booking" }, { status: 500 });
@@ -64,7 +128,9 @@ export async function GET(request: Request) {
     const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
     if (scriptUrl) {
       try {
-        const response = await fetch(`${scriptUrl}?date=${dateParam}`);
+        const response = await fetch(`${scriptUrl}?date=${dateParam}`, {
+          signal: AbortSignal.timeout(SCRIPT_TIMEOUT_MS),
+        });
         const result = await response.json();
         return NextResponse.json(result);
       } catch (scriptErr) {
