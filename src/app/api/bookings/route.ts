@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+// The Google Apps Script web app is the system of record. It is slow and
+// variable (observed 8s-40s+), so give the function room and bound the call.
+export const maxDuration = 60;
+const SCRIPT_TIMEOUT_MS = 45_000;
+
 // Local disk persistence is a BACKUP / local-dev aid only. On serverless
 // hosts (e.g. Vercel) the project filesystem is read-only (EROFS), so every
 // write here must be best-effort and must never block the primary capture path.
@@ -53,6 +58,7 @@ export async function POST(request: Request) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data),
+          signal: AbortSignal.timeout(SCRIPT_TIMEOUT_MS),
         });
         if (response.ok) {
           const result = await response.json();
@@ -64,9 +70,29 @@ export async function POST(request: Request) {
         console.error("Google Apps Script proxy error:", scriptErr);
       }
       // Script failed -> fall through and try the local backup below.
+    } else {
+      console.error("GOOGLE_APPS_SCRIPT_URL is not configured; cannot reach the system of record");
     }
 
     // 2. FALLBACK: local backup store.
+    //
+    // On serverless hosts the local store lives in /tmp: it is ephemeral and
+    // per-instance, so a write there is NOT a durable booking record. Reporting
+    // success for it would be a false success - the customer would believe they
+    // were booked while the request vanishes. Fail honestly instead and point
+    // them at a channel that does not depend on this server.
+    if (IS_SERVERLESS) {
+      console.error("Apps Script capture failed and local storage is not durable on serverless");
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "We could not save your booking online. Please call or WhatsApp 0802 135 2593 and we will confirm your slot.",
+        },
+        { status: 503 }
+      );
+    }
+
     const savedLocally = saveLocal(newBooking);
     if (savedLocally) {
       return NextResponse.json({ success: true, booking: newBooking, note: "Saved locally" });
@@ -102,7 +128,9 @@ export async function GET(request: Request) {
     const scriptUrl = process.env.GOOGLE_APPS_SCRIPT_URL;
     if (scriptUrl) {
       try {
-        const response = await fetch(`${scriptUrl}?date=${dateParam}`);
+        const response = await fetch(`${scriptUrl}?date=${dateParam}`, {
+          signal: AbortSignal.timeout(SCRIPT_TIMEOUT_MS),
+        });
         const result = await response.json();
         return NextResponse.json(result);
       } catch (scriptErr) {

@@ -131,4 +131,48 @@ describe("POST /api/bookings", () => {
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toMatchObject({ success: true, note: "Saved locally" });
   });
+
+  it("CRITICAL: on serverless, never reports a false success when the sheet is unreachable", async () => {
+    // /tmp on Vercel is ephemeral and per-instance. A write there is not a
+    // durable booking record, so returning 200 would tell the customer they
+    // were booked while the request silently vanished.
+    process.env.VERCEL = "1";
+    process.env.GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/FAKE/exec";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) })
+    );
+
+    const { POST } = await loadRoute();
+    const res = await POST(post(booking));
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toMatch(/0802 135 2593/);
+  });
+
+  it("on serverless, a working sheet is still a real success", async () => {
+    process.env.VERCEL = "1";
+    process.env.GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/FAKE/exec";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true, bookingId: "SW-123" }),
+      })
+    );
+
+    const { POST } = await loadRoute();
+    const res = await POST(post(booking));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({ success: true, bookingId: "SW-123" });
+  });
+
+  it("gives the Apps Script enough time to answer (it takes 8-40s in production)", async () => {
+    const { maxDuration } = await loadRoute();
+    expect(maxDuration).toBeGreaterThanOrEqual(60);
+  });
 });
